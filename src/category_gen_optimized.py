@@ -1,14 +1,12 @@
 from sentence_transformers import SentenceTransformer
 import umap
 import hdbscan
-from keybert import KeyBERT
 from data_parser import parse_data
-import openai
-from openai import OpenAI
-import time
 import pandas as pd
 import os
+import time
 from dotenv import load_dotenv
+from ai_optimization import OptimizedCategoryGenerator, LocalCategoryModel
 
 # Load environment variables from .env file
 load_dotenv()
@@ -73,56 +71,6 @@ def add_temporal_features(df):
     
     return df
 
-def get_openai_categories(title):
-    client = OpenAI(api_key=openai_api_key)
-    try:
-        messages = [
-            {"role": "system", "content": "You are a product categorization expert. Your task is to categorize product titles into a main category and subcategory. DO NOT provide URLs or links. Only provide the category and subcategory in the format 'Category|Subcategory'."},
-            {"role": "user", "content": f"""Here are some examples:
-Product: "Nike Air Max Running Shoes"
-Response: "Footwear|Running Shoes"
-
-Product: "Samsung 4K Smart TV 55 inch"
-Response: "Electronics|Televisions"
-
-Product: "Organic Cotton T-Shirt"
-Response: "Clothing|T-Shirts"
-
-Now categorize this product:
-{title}"""}
-        ]
-        
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            temperature=0.3,
-            max_tokens=50
-        )
-        
-        categories = response.choices[0].message.content.strip()
-        print(f"Raw API response for '{title}': {categories}")  # Debug print
-        
-        # Handle various response formats
-        if '|' in categories:
-            parts = categories.split('|')
-            if len(parts) == 2:
-                return parts[0].strip(), parts[1].strip()
-            else:
-                # If we have more than 2 parts, take the first two
-                return parts[0].strip(), parts[1].strip()
-        elif ':' in categories:
-            # Try to handle "Category: Subcategory" format
-            parts = categories.split(':')
-            if len(parts) == 2:
-                return parts[0].strip(), parts[1].strip()
-        
-        # If no clear separator found, return the whole response as category
-        return categories, "Unspecified"
-        
-    except Exception as e:
-        print(f"Error processing title '{title}': {str(e)}")
-        return "Unknown", "Unknown"
-
 def calculate_confidence_scores(df):
     """
     Calculate confidence scores for OpenAI categories based on clustering consistency
@@ -172,7 +120,10 @@ def calculate_confidence_scores(df):
     
     return confidence_scores
 
-def generate_categories(df):
+def generate_categories_optimized(df, use_local_model=False, existing_data_path=None):
+    """
+    Generate categories using optimized methods for scaling
+    """
     # Add temporal features first
     df = add_temporal_features(df)
     
@@ -180,7 +131,7 @@ def generate_categories(df):
     product_titles = normalize_titles(df, 'Item Title')
     print("Normalized titles: ", product_titles[0:10])
     
-    # Initialize sentence transformer
+    # Initialize sentence transformer for clustering
     model = SentenceTransformer('all-MiniLM-L6-v2')
 
     # Generate embeddings
@@ -201,21 +152,50 @@ def generate_categories(df):
     df['cluster_label'] = labels
     print("Cluster labels added")
 
-    # Generate OpenAI categories
-    print("Generating OpenAI categories...")
-    categories = []
-    subcategories = []
+    # Generate categories using optimized method
+    print("Generating categories with optimizations...")
     
-    for title in product_titles:
-        category, subcategory = get_openai_categories(title)
-        categories.append(category)
-        subcategories.append(subcategory)
-        # Add a small delay to avoid rate limiting
-        time.sleep(0.5)
+    if use_local_model and existing_data_path and os.path.exists(existing_data_path):
+        # Use local model trained on existing data
+        print("Using local model for categorization...")
+        local_model = LocalCategoryModel()
+        
+        # Train on existing data
+        existing_df = pd.read_csv(existing_data_path)
+        local_model.train_from_existing_data(existing_df)
+        
+        # Apply local model first, fall back to optimized OpenAI
+        optimizer = OptimizedCategoryGenerator(openai_api_key)
+        
+        categories = []
+        subcategories = []
+        methods = []
+        
+        for title in product_titles:
+            # Try local model first
+            local_category = local_model.predict_category(title)
+            
+            if local_category:
+                categories.append(local_category)
+                subcategories.append("Local Prediction")
+                methods.append("local_model")
+            else:
+                # Fall back to optimized OpenAI method
+                category, subcategory, method = optimizer.get_category_with_optimizations(title)
+                categories.append(category)
+                subcategories.append(subcategory)
+                methods.append(method)
+        
+        df['openai_category'] = categories
+        df['openai_subcategory'] = subcategories
+        df['categorization_method'] = methods
+        
+    else:
+        # Use optimized OpenAI method
+        optimizer = OptimizedCategoryGenerator(openai_api_key)
+        df = optimizer.process_dataframe_optimized(df)
     
-    df['openai_category'] = categories
-    df['openai_subcategory'] = subcategories
-    print("OpenAI categories added")
+    print("Categories generated with optimizations!")
 
     # Calculate confidence scores based on clustering consistency
     print("Calculating confidence scores...")
@@ -225,17 +205,88 @@ def generate_categories(df):
 
     return df
 
-#def gen_subcategories(df):
+def compare_optimization_methods(df, sample_size=50):
+    """
+    Compare different optimization methods to show speed improvements
+    """
+    print(f"\n{'='*60}")
+    print("OPTIMIZATION COMPARISON")
+    print(f"{'='*60}")
+    
+    # Take a sample for testing
+    sample_df = df.head(sample_size).copy()
+    titles = sample_df['Item Title'].tolist()
+    
+    print(f"Testing with {len(titles)} products...")
+    
+    # Method 1: Original synchronous method (simulated)
+    print("\n1. Original Method (Simulated):")
+    original_time = len(titles) * 0.5  # 0.5 seconds per product (your current method)
+    print(f"   Estimated time: {original_time:.1f} seconds")
+    print(f"   Rate: {len(titles) / original_time:.1f} products/second")
+    
+    # Method 2: Optimized method
+    print("\n2. Optimized Method:")
+    start_time = time.time()
+    optimizer = OptimizedCategoryGenerator(openai_api_key)
+    optimized_df = optimizer.process_dataframe_optimized(sample_df)
+    optimized_time = time.time() - start_time
+    
+    print(f"   Actual time: {optimized_time:.1f} seconds")
+    print(f"   Rate: {len(titles) / optimized_time:.1f} products/second")
+    print(f"   Speed improvement: {original_time / optimized_time:.1f}x faster")
+    
+    # Show method breakdown
+    method_counts = optimized_df['categorization_method'].value_counts()
+    print(f"\n   Method breakdown:")
+    for method, count in method_counts.items():
+        pct = (count / len(titles)) * 100
+        print(f"     {method}: {count} ({pct:.1f}%)")
+    
+    print(f"\n{'='*60}")
+    print(f"PROJECTED SCALING IMPROVEMENTS")
+    print(f"{'='*60}")
+    
+    # Projections for different scales
+    scales = [100, 1000, 10000, 100000]
+    
+    for scale in scales:
+        original_proj = scale * 0.5
+        optimized_proj = scale * (optimized_time / len(titles))
+        
+        print(f"\nFor {scale:,} products:")
+        print(f"  Original method: {original_proj/60:.1f} minutes ({original_proj/3600:.1f} hours)")
+        print(f"  Optimized method: {optimized_proj/60:.1f} minutes ({optimized_proj/3600:.1f} hours)")
+        print(f"  Time saved: {(original_proj - optimized_proj)/3600:.1f} hours")
 
 if __name__ == "__main__":
+    # Load data
     df = parse_data("data\Custom-sales-report_010117-053025_all.csv")[:-2]
-    df = generate_categories(df)
+    
+    # Option 1: Run optimization comparison
+    print("Running optimization comparison...")
+    compare_optimization_methods(df, sample_size=20)
+    
+    # Option 2: Generate categories with optimizations
+    print("\nGenerating categories for full dataset...")
+    df = generate_categories_optimized(
+        df, 
+        use_local_model=False,  # Set to True if you have existing categorized data
+        existing_data_path="data/openai_categories.csv"  # Path to existing data for training
+    )
+    
+    # Print results
     print("\nCluster distribution:")
     print(df['cluster_label'].value_counts())
     print("\nCategory distribution:")
     print(df['openai_category'].value_counts())
     print("\nSubcategory distribution:")
     print(df['openai_subcategory'].value_counts())
+    
+    if 'categorization_method' in df.columns:
+        print("\nOptimization method distribution:")
+        print(df['categorization_method'].value_counts())
+    
     print("\nDay of week distribution:")
     print(df['day_of_week'].value_counts())
     print("\nSeason distribution:")
@@ -257,30 +308,6 @@ if __name__ == "__main__":
     df['confidence_bin'] = pd.cut(df['confidence_score'], bins=confidence_bins, labels=confidence_labels, include_lowest=True)
     print(df['confidence_bin'].value_counts())
     
-    # Show examples of high and low confidence categorizations
-    print("\nHIGH CONFIDENCE EXAMPLES (>0.8):")
-    high_confidence = df[df['confidence_score'] > 0.8].head(5)
-    for _, row in high_confidence.iterrows():
-        print(f"  '{row['Item Title'][:50]}...' -> {row['openai_category']}|{row['openai_subcategory']} (Score: {row['confidence_score']})")
-    
-    print("\nLOW CONFIDENCE EXAMPLES (<0.5):")
-    low_confidence = df[df['confidence_score'] < 0.5].head(5)
-    for _, row in low_confidence.iterrows():
-        print(f"  '{row['Item Title'][:50]}...' -> {row['openai_category']}|{row['openai_subcategory']} (Score: {row['confidence_score']})")
-        
-    # Show cluster consistency examples
-    print("\nCLUSTER CONSISTENCY EXAMPLES:")
-    for cluster_id in df['cluster_label'].unique()[:3]:
-        if cluster_id != -1:  # Skip noise points
-            cluster_data = df[df['cluster_label'] == cluster_id]
-            if len(cluster_data) > 1:
-                print(f"\nCluster {cluster_id} ({len(cluster_data)} products):")
-                categories = cluster_data['openai_category'].value_counts()
-                subcategories = cluster_data['openai_subcategory'].value_counts()
-                print(f"  Categories: {dict(categories)}")
-                print(f"  Subcategories: {dict(subcategories)}")
-                avg_confidence = cluster_data['confidence_score'].mean()
-                print(f"  Average confidence: {avg_confidence:.3f}")
-
-    df.to_csv("data\openai_categories.csv", index=False)
-
+    # Save results
+    df.to_csv("data/openai_categories_optimized.csv", index=False)
+    print(f"\nResults saved to: data/openai_categories_optimized.csv") 

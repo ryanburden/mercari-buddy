@@ -276,3 +276,64 @@ Dashboard Overview → Category Analysis → Geographic Insights → Recommendat
 - Private equity rollup
 - Continue as profitable lifestyle business
 - Expand to compete with larger e-commerce analytics tools 
+
+# Hybrid AI Strategy for Cost Reduction
+Phase 1: 100% OpenAI API ($0.002/1K tokens)
+Phase 2: 70% OpenAI + 30% local models  
+Phase 3: 40% OpenAI + 60% local models
+
+# Estimated AI Costs:
+- MVP: $20-100/month (100-500 products/day)
+- Growth: $200-800/month (1K-5K products/day)  
+- Scale: $1K-5K/month (10K+ products/day) 
+
+Enterprise Customers:
+├── On-Prem Options:
+│   ├── Local AI models (privacy compliance)
+│   ├── Data residency requirements
+│   └── Custom integrations
+└── Cloud-Prem Bridge:
+    ├── VPN connections
+    ├── Hybrid data sync
+    └── Centralized analytics
+
+User Growth → Storage Needs:
+├── 1K users × 10MB avg = 10GB storage
+├── 10K users × 10MB avg = 100GB storage  
+└── 100K users × 10MB avg = 1TB storage
+
+Bandwidth Usage:
+├── Dashboard: ~2MB per session
+├── File Upload: ~10MB per upload
+└── API Calls: ~1KB per request
+
+# Rate Limiting Strategy
+MVP: 50 requests/minute per user
+Growth: Queue system with batch processing
+Scale: Intelligent routing (local vs API)
+
+# Cost Per Product Analysis:
+- Simple products: $0.001 (local model)
+- Complex products: $0.005 (OpenAI API)
+- Avg blended cost: $0.002-0.003 per product
+
+GPU Requirements:
+├── Model: sentence-transformers/all-MiniLM-L6-v2
+├── Hardware: 1x NVIDIA T4 (16GB VRAM)
+├── Inference: ~100 products/minute
+└── Cost: ~$200-400/month vs $1000+ OpenAI
+
+Metrics to Watch:
+├── CPU Usage > 70% sustained
+├── Memory Usage > 80%
+├── Database connections > 80% of limit
+├── Queue depth > 1000 jobs
+├── Response time > 3 seconds
+└── Error rate > 1%
+
+Security Layers:
+├── Network: VPC, Security Groups, NACLs
+├── Application: WAF, DDoS protection
+├── Data: Encryption at rest/transit
+├── Access: IAM, MFA, audit logging
+└── Monitoring: SIEM, threat detection

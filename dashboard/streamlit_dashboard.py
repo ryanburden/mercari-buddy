@@ -19,7 +19,7 @@ st.set_page_config(
 # Load data
 @st.cache_data
 def load_data():
-    df = pd.read_csv("../data/openai_categories.csv")
+    df = pd.read_csv("data/openai_categories.csv")
     df['Sold Date'] = pd.to_datetime(df['Sold Date'])
     df['Profit'] = df['Net Seller Proceeds']
     df['Profit Margin'] = (df['Profit'] / df['Item Price']) * 100
@@ -146,6 +146,74 @@ def revenue_analytics(df):
         )
         st.plotly_chart(fig, use_container_width=True)
     
+    # Temporal Analysis Section
+    st.subheader("📅 Temporal Sales Patterns")
+    
+    # Day of Week Analysis
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("**Sales by Day of Week**")
+        
+        # Check if day_of_week column exists
+        if 'day_of_week' in df.columns:
+            # Define day order for proper sorting
+            day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            
+            # Calculate revenue by day of week
+            day_revenue = df.groupby('day_of_week')['Item Price'].agg(['sum', 'count', 'mean']).round(2)
+            day_revenue.columns = ['Total Revenue', 'Sales Count', 'Avg Sale Price']
+            
+            # Reorder by day of week
+            day_revenue = day_revenue.reindex([day for day in day_order if day in day_revenue.index])
+            
+            # Create visualization
+            fig = px.bar(
+                x=day_revenue.index,
+                y=day_revenue['Total Revenue'],
+                title="Revenue by Day of Week",
+                labels={'x': 'Day of Week', 'y': 'Revenue ($)'},
+                color=day_revenue['Total Revenue'],
+                color_continuous_scale='Blues'
+            )
+            fig.update_layout(xaxis_tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Show summary table
+            st.write("**Day of Week Summary:**")
+            st.dataframe(day_revenue, use_container_width=True)
+        else:
+            st.warning("Day of week data not available. Please regenerate your data with the latest version.")
+    
+    with col2:
+        st.write("**Sales by Season**")
+        
+        # Check if season column exists
+        if 'season' in df.columns:
+            # Define season order
+            season_order = ['Spring', 'Summer', 'Fall', 'Winter']
+            
+            # Calculate revenue by season
+            season_revenue = df.groupby('season')['Item Price'].agg(['sum', 'count', 'mean']).round(2)
+            season_revenue.columns = ['Total Revenue', 'Sales Count', 'Avg Sale Price']
+            
+            # Reorder by season
+            season_revenue = season_revenue.reindex([season for season in season_order if season in season_revenue.index])
+            
+            # Create visualization
+            fig = px.pie(
+                values=season_revenue['Total Revenue'],
+                names=season_revenue.index,
+                title="Revenue Distribution by Season"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Show summary table
+            st.write("**Season Summary:**")
+            st.dataframe(season_revenue, use_container_width=True)
+        else:
+            st.warning("Season data not available. Please regenerate your data with the latest version.")
+    
     # Time series analysis
     st.subheader("Revenue Trends Over Time")
     df['Month'] = df['Sold Date'].dt.to_period('M').astype(str)
@@ -161,6 +229,51 @@ def revenue_analytics(df):
     )
     fig.update_layout(xaxis_tickangle=-45)
     st.plotly_chart(fig, use_container_width=True)
+    
+    # Advanced Temporal Analysis
+    if 'day_of_week' in df.columns and 'season' in df.columns:
+        st.subheader("🔍 Advanced Temporal Insights")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**Category Performance by Day of Week**")
+            
+            # Create a heatmap of categories vs days
+            day_category_revenue = df.groupby(['day_of_week', 'openai_category'])['Item Price'].sum().reset_index()
+            
+            # Create pivot table for heatmap
+            pivot_table = day_category_revenue.pivot(index='openai_category', columns='day_of_week', values='Item Price').fillna(0)
+            
+            # Reorder columns by day of week
+            day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            pivot_table = pivot_table.reindex(columns=[day for day in day_order if day in pivot_table.columns])
+            
+            fig = px.imshow(
+                pivot_table.values,
+                x=pivot_table.columns,
+                y=pivot_table.index,
+                title="Revenue Heatmap: Category vs Day of Week",
+                color_continuous_scale='Viridis',
+                aspect='auto'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.write("**Seasonal Trends by Category**")
+            
+            # Calculate seasonal performance by category
+            season_category = df.groupby(['season', 'openai_category'])['Item Price'].sum().reset_index()
+            
+            fig = px.bar(
+                season_category,
+                x='season',
+                y='Item Price',
+                color='openai_category',
+                title="Seasonal Revenue by Category",
+                labels={'Item Price': 'Revenue ($)', 'season': 'Season'}
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 def category_intelligence(df):
     st.header("🎯 Category Intelligence")
@@ -499,6 +612,63 @@ def recommendations(df):
             margin = underperforming.loc[category, 'Profit Margin']
             st.write(f"• {category}: Only {volume} items, {margin:.1f}% margin")
     
+    # Temporal Strategic Insights
+    if 'day_of_week' in df.columns and 'season' in df.columns:
+        st.subheader("📅 Temporal Strategy Insights")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Day of Week Optimization")
+            
+            # Best performing days
+            day_performance = df.groupby('day_of_week')['Item Price'].agg(['sum', 'count', 'mean'])
+            day_performance.columns = ['Total Revenue', 'Sales Count', 'Avg Sale Price']
+            
+            # Sort by total revenue
+            best_days = day_performance.sort_values('Total Revenue', ascending=False)
+            
+            st.write("**Best performing days for sales:**")
+            for i, (day, row) in enumerate(best_days.head(3).iterrows(), 1):
+                st.write(f"{i}. **{day}**: ${row['Total Revenue']:,.2f} total revenue ({row['Sales Count']} sales)")
+            
+            # Recommendations based on day patterns
+            weekday_revenue = df[df['day_of_week'].isin(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])]['Item Price'].sum()
+            weekend_revenue = df[df['day_of_week'].isin(['Saturday', 'Sunday'])]['Item Price'].sum()
+            
+            if weekend_revenue > weekday_revenue:
+                st.info("💡 **Weekend Focus**: Your weekend sales outperform weekdays. Consider promoting weekend-specific items or running weekend sales.")
+            else:
+                st.info("💡 **Weekday Advantage**: Weekday sales are stronger. Consider business/professional items or weekday convenience products.")
+        
+        with col2:
+            st.markdown("### Seasonal Strategy")
+            
+            # Best performing seasons
+            season_performance = df.groupby('season')['Item Price'].agg(['sum', 'count', 'mean'])
+            season_performance.columns = ['Total Revenue', 'Sales Count', 'Avg Sale Price']
+            
+            # Sort by total revenue
+            best_seasons = season_performance.sort_values('Total Revenue', ascending=False)
+            
+            st.write("**Peak seasons for your business:**")
+            for i, (season, row) in enumerate(best_seasons.iterrows(), 1):
+                if season != 'Unknown':
+                    st.write(f"{i}. **{season}**: ${row['Total Revenue']:,.2f} total revenue ({row['Sales Count']} sales)")
+            
+            # Seasonal recommendations
+            top_season = best_seasons.index[0] if best_seasons.index[0] != 'Unknown' else best_seasons.index[1]
+            
+            seasonal_advice = {
+                'Spring': "🌸 **Spring Strategy**: Focus on spring cleaning items, outdoor gear, and fresh fashion. Start promoting Easter and graduation-related items.",
+                'Summer': "☀️ **Summer Strategy**: Emphasize outdoor activities, travel gear, summer clothing, and vacation items. Beach and pool accessories perform well.",
+                'Fall': "🍂 **Fall Strategy**: Back-to-school items, warm clothing, and home decor for the holidays. Halloween and Thanksgiving items are seasonal winners.",
+                'Winter': "❄️ **Winter Strategy**: Holiday gifts, winter clothing, and indoor activities. New Year organization and fitness items also perform well."
+            }
+            
+            if top_season in seasonal_advice:
+                st.info(seasonal_advice[top_season])
+    
     # Strategic insights
     st.subheader("📈 Strategic Insights")
     
@@ -523,6 +693,27 @@ def recommendations(df):
     low_conf_pct = (df['confidence_score'] < 0.5).mean() * 100
     if low_conf_pct > 20:
         insights.append(f"🔸 **Data Quality**: {low_conf_pct:.1f}% of items have low categorization confidence. Improve product titles and descriptions for better analytics.")
+    
+    # Insight 5: Temporal patterns
+    if 'day_of_week' in df.columns:
+        # Check for day-of-week patterns
+        day_variance = df.groupby('day_of_week')['Item Price'].sum().std()
+        if day_variance > df['Item Price'].sum() * 0.1:  # High variance across days
+            best_day = df.groupby('day_of_week')['Item Price'].sum().idxmax()
+            insights.append(f"🔸 **Timing Strategy**: Sales vary significantly by day of week. {best_day} is your strongest day - consider timing listings and promotions accordingly.")
+    
+    # Insight 6: Seasonal opportunities
+    if 'season' in df.columns:
+        season_revenue = df.groupby('season')['Item Price'].sum()
+        if 'Unknown' in season_revenue.index:
+            season_revenue = season_revenue.drop('Unknown')
+        
+        if len(season_revenue) > 1:
+            season_variance = season_revenue.std()
+            if season_variance > season_revenue.mean() * 0.2:  # High seasonal variance
+                peak_season = season_revenue.idxmax()
+                low_season = season_revenue.idxmin()
+                insights.append(f"🔸 **Seasonal Planning**: Strong seasonal patterns detected. {peak_season} is your peak season, while {low_season} may need targeted strategies or inventory adjustments.")
     
     for insight in insights:
         st.markdown(insight)

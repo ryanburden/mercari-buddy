@@ -1,0 +1,25 @@
+# Environment variables
+python-dotenv==1.0.0
+
+# Sentence embeddings
+sentence-transformers==2.2.2
+huggingface-hub==0.19.4
+
+# Dimensionality reduction
+umap-learn==0.5.5
+
+# Clustering
+hdbscan==0.8.33
+
+# Keyword extraction
+keybert==0.8.2
+
+# NLP for preprocessing and tokenization
+spacy==3.7.2
+#en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.2/en_core_web_sm-3.7.2.tar.gz
+
+# Optional: visualization of clusters (e.g., with matplotlib or seaborn)
+matplotlib==3.8.4
+seaborn==0.13.2
+pandas==2.2.1
+openai==1.1.0

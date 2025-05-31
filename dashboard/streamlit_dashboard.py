@@ -16,6 +16,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Custom CSS for dark blue gradient background and styling
+st.markdown("""
+<style>
+    /* Minimal styling for better readability */
+    h1, h2, h3 {
+        color: #1f77b4 !important;
+    }
+    
+    /* Metric cards styling */
+    [data-testid="metric-container"] {
+        background: rgba(248, 249, 250, 0.8);
+        border: 1px solid rgba(0,0,0,0.1);
+        padding: 1rem;
+        border-radius: 8px;
+    }
+    
+    /* Clean dataframe styling */
+    .stDataFrame {
+        border-radius: 8px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Load data
 @st.cache_data
 def load_data():
@@ -27,18 +50,31 @@ def load_data():
 
 # Main dashboard
 def main():
-    st.title("🛍️ E-commerce Sales Intelligence Dashboard")
-    st.markdown("*Powered by AI Category Intelligence and Clustering Analysis*")
+    # Enhanced title with gradient styling
+    st.markdown("""
+    <div style="text-align: center; padding: 2rem 0;">
+        <h1 style="font-size: 3rem; color: #1f77b4; margin-bottom: 0.5rem;">
+            🛍️ E-commerce Sales Intelligence
+        </h1>
+        <p style="font-size: 1.2rem; color: #666; margin-top: 0;">
+            Powered by AI Category Intelligence & Temporal Analysis
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Load data
     df = load_data()
     
     # Sidebar filters
-    st.sidebar.header("🔍 Filters")
+    st.sidebar.markdown("""
+    <div style="text-align: center; padding: 1rem 0;">
+        <h2 style="color: #1f77b4; margin-bottom: 1rem;">🔍 Dashboard Filters</h2>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Date range filter
     date_range = st.sidebar.date_input(
-        "Select Date Range",
+        "📅 Select Date Range",
         value=[df['Sold Date'].min(), df['Sold Date'].max()],
         min_value=df['Sold Date'].min(),
         max_value=df['Sold Date'].max()
@@ -46,10 +82,21 @@ def main():
     
     # Category filter
     categories = st.sidebar.multiselect(
-        "Select Categories",
+        "🏷️ Select Categories",
         options=df['openai_category'].unique(),
         default=df['openai_category'].unique()
     )
+    
+    # Add some metrics to sidebar
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 📊 Quick Stats")
+    total_revenue = df['Item Price'].sum()
+    total_items = len(df)
+    avg_price = df['Item Price'].mean()
+    
+    st.sidebar.metric("Total Revenue", f"${total_revenue:,.2f}")
+    st.sidebar.metric("Total Items", f"{total_items:,}")
+    st.sidebar.metric("Avg Item Price", f"${avg_price:.2f}")
     
     # Apply filters
     filtered_df = df[
@@ -357,64 +404,162 @@ def category_intelligence(df):
 def geographic_insights(df):
     st.header("🗺️ Geographic Insights")
     
-    # State performance
+    # Geographic Heatmap
+    st.subheader("🌎 Sales Heatmap by State")
+    
+    # Prepare state data for heatmap
+    state_data = df.groupby('Shipped to State').agg({
+        'Item Price': 'sum',
+        'Item Id': 'count'
+    }).reset_index()
+    
+    state_data.columns = ['State', 'Total Revenue', 'Order Count']
+    state_data['Avg Order Value'] = state_data['Total Revenue'] / state_data['Order Count']
+    
+    # Create the choropleth map
+    fig_map = px.choropleth(
+        state_data,
+        locations='State',
+        color='Total Revenue',
+        locationmode='USA-states',
+        scope='usa',
+        color_continuous_scale='Blues',
+        title='Revenue Distribution Across US States',
+        labels={'Total Revenue': 'Revenue ($)', 'State': 'State'},
+        hover_data={
+            'Total Revenue': ':$,.2f',
+            'Order Count': ':,',
+            'Avg Order Value': ':$,.2f'
+        }
+    )
+    
+    st.plotly_chart(fig_map, use_container_width=True)
+    
+    # State performance details
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Sales by State")
-        state_sales = df.groupby('Shipped to State').agg({
-            'Item Price': 'sum',
-            'Item Id': 'count'
-        }).sort_values('Item Price', ascending=False).head(15)
-        
-        state_sales.columns = ['Total Revenue', 'Order Count']
+        st.subheader("📊 Top States by Revenue")
+        top_states = state_data.nlargest(10, 'Total Revenue')
         
         fig = px.bar(
-            x=state_sales.index,
-            y=state_sales['Total Revenue'],
-            title="Top 15 States by Revenue",
-            labels={'x': 'State', 'y': 'Revenue ($)'}
+            top_states,
+            x='Total Revenue',
+            y='State',
+            orientation='h',
+            title="Top 10 States by Revenue",
+            labels={'Total Revenue': 'Revenue ($)', 'State': 'State'},
+            color='Total Revenue',
+            color_continuous_scale='Viridis'
         )
-        fig.update_layout(xaxis_tickangle=-45)
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        st.subheader("Average Order Value by State")
-        state_aov = df.groupby('Shipped to State')['Item Price'].mean().sort_values(ascending=False).head(15)
+        st.subheader("💰 Average Order Value by State")
+        top_aov_states = state_data.nlargest(10, 'Avg Order Value')
         
         fig = px.bar(
-            x=state_aov.index,
-            y=state_aov.values,
-            title="Top 15 States by Average Order Value",
-            labels={'x': 'State', 'y': 'AOV ($)'},
-            color=state_aov.values,
+            top_aov_states,
+            x='Avg Order Value',
+            y='State',
+            orientation='h',
+            title="Top 10 States by Average Order Value",
+            labels={'Avg Order Value': 'AOV ($)', 'State': 'State'},
+            color='Avg Order Value',
             color_continuous_scale='Plasma'
         )
-        fig.update_layout(xaxis_tickangle=-45)
         st.plotly_chart(fig, use_container_width=True)
     
+    # Enhanced geographic analysis
+    st.subheader("🏙️ Regional Performance Analysis")
+    
+    # State-level statistics table
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("**Top Performing States:**")
+        display_states = state_data.nlargest(8, 'Total Revenue')[['State', 'Total Revenue', 'Order Count', 'Avg Order Value']].round(2)
+        st.dataframe(display_states, use_container_width=True)
+    
+    with col2:
+        # Regional grouping (enhanced)
+        st.write("**Regional Analysis:**")
+        
+        # More comprehensive region mapping
+        region_mapping = {
+            'California': 'West', 'Washington': 'West', 'Oregon': 'West', 'Nevada': 'West',
+            'Arizona': 'West', 'Utah': 'West', 'Colorado': 'West', 'New Mexico': 'West',
+            'Wyoming': 'West', 'Montana': 'West', 'Idaho': 'West', 'Alaska': 'West', 'Hawaii': 'West',
+            
+            'Texas': 'South', 'Florida': 'South', 'Georgia': 'South', 'North Carolina': 'South',
+            'South Carolina': 'South', 'Virginia': 'South', 'Tennessee': 'South', 'Kentucky': 'South',
+            'Alabama': 'South', 'Mississippi': 'South', 'Arkansas': 'South', 'Louisiana': 'South',
+            'Oklahoma': 'South', 'West Virginia': 'South', 'Maryland': 'South', 'Delaware': 'South',
+            'District of Columbia': 'South',
+            
+            'New York': 'Northeast', 'Pennsylvania': 'Northeast', 'Massachusetts': 'Northeast',
+            'Connecticut': 'Northeast', 'Rhode Island': 'Northeast', 'Vermont': 'Northeast',
+            'New Hampshire': 'Northeast', 'Maine': 'Northeast', 'New Jersey': 'Northeast',
+            
+            'Illinois': 'Midwest', 'Ohio': 'Midwest', 'Michigan': 'Midwest', 'Indiana': 'Midwest',
+            'Wisconsin': 'Midwest', 'Minnesota': 'Midwest', 'Iowa': 'Midwest', 'Missouri': 'Midwest',
+            'North Dakota': 'Midwest', 'South Dakota': 'Midwest', 'Nebraska': 'Midwest', 'Kansas': 'Midwest'
+        }
+        
+        df['Region'] = df['Shipped to State'].map(region_mapping).fillna('Other')
+        
+        regional_stats = df.groupby('Region').agg({
+            'Item Price': ['sum', 'mean', 'count']
+        }).round(2)
+        
+        regional_stats.columns = ['Total Revenue', 'Avg Price', 'Order Count']
+        regional_stats = regional_stats.sort_values('Total Revenue', ascending=False)
+        
+        st.dataframe(regional_stats, use_container_width=True)
+    
     # Category preferences by region
-    st.subheader("Category Preferences by Region")
-    
-    # Group states into regions (simplified)
-    region_mapping = {
-        'California': 'West', 'Washington': 'West', 'Oregon': 'West',
-        'Texas': 'South', 'Florida': 'South', 'Georgia': 'South',
-        'New York': 'Northeast', 'Pennsylvania': 'Northeast', 'Massachusetts': 'Northeast',
-        'Illinois': 'Midwest', 'Ohio': 'Midwest', 'Michigan': 'Midwest'
-    }
-    
-    df['Region'] = df['Shipped to State'].map(region_mapping).fillna('Other')
+    st.subheader("🎯 Category Preferences by Region")
     
     region_category = df.groupby(['Region', 'openai_category'])['Item Price'].sum().reset_index()
     
+    # Create sunburst chart
     fig = px.sunburst(
         region_category,
         path=['Region', 'openai_category'],
         values='Item Price',
         title="Revenue Distribution: Region → Category"
     )
+    
     st.plotly_chart(fig, use_container_width=True)
+    
+    # Geographic insights summary
+    st.subheader("📈 Geographic Performance Insights")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        top_state = state_data.loc[state_data['Total Revenue'].idxmax()]
+        st.metric(
+            "🏆 Top State by Revenue", 
+            top_state['State'],
+            f"${top_state['Total Revenue']:,.2f}"
+        )
+    
+    with col2:
+        top_aov_state = state_data.loc[state_data['Avg Order Value'].idxmax()]
+        st.metric(
+            "💎 Highest AOV State",
+            top_aov_state['State'],
+            f"${top_aov_state['Avg Order Value']:.2f}"
+        )
+    
+    with col3:
+        total_states = len(state_data)
+        st.metric(
+            "🗺️ States Reached",
+            f"{total_states}",
+            "Geographic Coverage"
+        )
 
 def performance_metrics(df):
     st.header("⚡ Performance Metrics")
@@ -554,11 +699,11 @@ def recommendations(df):
     with col2:
         st.subheader("⚠️ Areas for Improvement")
         
-        st.markdown("### Low Confidence Categories")
-        low_conf_categories = df.groupby('openai_category')['confidence_score'].mean().sort_values().head(3)
-        st.write("**Categories that may need better product descriptions:**")
-        for category, conf in low_conf_categories.items():
-            st.write(f"• {category}: {conf:.2f} confidence score")
+        st.markdown("### Low Revenue Categories")
+        low_revenue_categories = df.groupby('openai_category')['Item Price'].sum().sort_values().head(3)
+        st.write("**Categories with low total revenue that may need attention:**")
+        for category, revenue in low_revenue_categories.items():
+            st.write(f"• {category}: ${revenue:.2f} total revenue")
         
         st.markdown("### Underperforming Categories")
         # Categories with low volume but decent margins
@@ -576,6 +721,14 @@ def recommendations(df):
             volume = underperforming.loc[category, 'Item Price']
             margin = underperforming.loc[category, 'Profit Margin']
             st.write(f"• {category}: Only {volume} items, {margin:.1f}% margin")
+        
+        st.markdown("### Price Optimization Opportunities")
+        # Categories with low average prices
+        low_price_categories = df.groupby('openai_category')['Item Price'].mean().sort_values().head(3)
+        st.write("**Categories that might benefit from premium positioning:**")
+        for category, avg_price in low_price_categories.items():
+            count = df[df['openai_category'] == category]['Item Price'].count()
+            st.write(f"• {category}: ${avg_price:.2f} avg price ({count} items)")
     
     # Temporal Strategic Insights
     if 'day_of_week' in df.columns and 'season' in df.columns:

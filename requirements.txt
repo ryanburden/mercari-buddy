@@ -1,29 +1,30 @@
-# Environment variables
-python-dotenv==1.0.0
+# Core dependencies for main categorization pipeline
+openai>=1.0.0
+pandas>=1.5.0
+python-dotenv>=0.19.0
+fastapi>=0.100.0
+uvicorn>=0.20.0
+python-multipart>=0.0.6
 
-# Dashboard and visualization
-streamlit==1.28.1
-plotly==5.17.0
+# Development and optional dependencies
+# (Required only if using clustering_analysis.py)
+sentence-transformers>=2.2.0  # Optional: for clustering analysis
+umap-learn>=0.5.0             # Optional: for clustering analysis  
+hdbscan>=0.8.0               # Optional: for clustering analysis
+keybert>=0.7.0               # Optional: for keyword extraction
+matplotlib>=3.5.0            # Optional: for clustering visualizations
+seaborn>=0.11.0              # Optional: for clustering visualizations
 
-# Sentence embeddings
-sentence-transformers==2.2.2
-huggingface-hub==0.19.4
+# Dashboard dependencies (if using Streamlit)
+streamlit>=1.28.0            # Optional: for prototype dashboard
+plotly>=5.15.0               # Optional: for interactive charts
 
-# Dimensionality reduction
-umap-learn==0.5.5
-
-# Clustering
-hdbscan==0.8.33
-
-# Keyword extraction
-keybert==0.8.2
-
-# NLP for preprocessing and tokenization
-spacy==3.7.2
-#en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.2/en_core_web_sm-3.7.2.tar.gz
-
-# Optional: visualization of clusters (e.g., with matplotlib or seaborn)
-matplotlib==3.8.4
-seaborn==0.13.2
-pandas==2.2.1
-openai==1.1.0
+# SaaS production dependencies (for FastAPI + Next.js stack)
+pydantic>=2.0.0              # For API models
+sqlalchemy>=2.0.0            # For database ORM
+alembic>=1.12.0              # For database migrations
+redis>=4.5.0                 # For caching and job queues
+celery>=5.3.0                # For background tasks
+stripe>=5.5.0                # For payment processing
+sendgrid>=6.10.0             # For email notifications
+boto3>=1.28.0                # For AWS S3 file storage

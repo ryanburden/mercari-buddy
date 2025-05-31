@@ -51,30 +51,19 @@ def main():
         default=df['openai_category'].unique()
     )
     
-    # Confidence filter
-    min_confidence = st.sidebar.slider(
-        "Minimum Confidence Score",
-        min_value=0.0,
-        max_value=1.0,
-        value=0.0,
-        step=0.1
-    )
-    
     # Apply filters
     filtered_df = df[
         (df['Sold Date'] >= pd.to_datetime(date_range[0])) &
         (df['Sold Date'] <= pd.to_datetime(date_range[1])) &
-        (df['openai_category'].isin(categories)) &
-        (df['confidence_score'] >= min_confidence)
+        (df['openai_category'].isin(categories))
     ]
     
     # Main content tabs
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📈 Revenue Analytics", 
         "🎯 Category Intelligence", 
         "🗺️ Geographic Insights", 
         "⚡ Performance Metrics",
-        "🔬 Data Quality", 
         "💡 Recommendations"
     ])
     
@@ -91,9 +80,6 @@ def main():
         performance_metrics(filtered_df)
     
     with tab5:
-        data_quality(filtered_df)
-    
-    with tab6:
         recommendations(filtered_df)
 
 def revenue_analytics(df):
@@ -286,11 +272,10 @@ def category_intelligence(df):
         # Create performance matrix
         category_stats = df.groupby('openai_category').agg({
             'Item Price': ['mean', 'count'],
-            'Profit Margin': 'mean',
-            'confidence_score': 'mean'
+            'Profit Margin': 'mean'
         }).round(2)
         
-        category_stats.columns = ['Avg Price', 'Sales Volume', 'Avg Margin %', 'Avg Confidence']
+        category_stats.columns = ['Avg Price', 'Sales Volume', 'Avg Margin %']
         category_stats = category_stats.sort_values('Avg Price', ascending=False)
         
         st.dataframe(category_stats, use_container_width=True)
@@ -322,18 +307,52 @@ def category_intelligence(df):
     
     st.dataframe(subcategory_perf, use_container_width=True)
     
-    # Category vs Cluster analysis
-    st.subheader("AI Categories vs Clustering Analysis")
+    # Category trends analysis
+    st.subheader("Category Trends & Insights")
     
-    cluster_category = pd.crosstab(df['cluster_label'], df['openai_category'])
-    fig = px.imshow(
-        cluster_category.values,
-        x=cluster_category.columns,
-        y=[f"Cluster {i}" if i != -1 else "Noise" for i in cluster_category.index],
-        title="Heatmap: Cluster vs AI Category Alignment",
-        color_continuous_scale='Blues'
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Category volume vs average price
+        category_metrics = df.groupby('openai_category').agg({
+            'Item Price': ['mean', 'count'],
+            'Profit Margin': 'mean'
+        }).round(2)
+        
+        category_metrics.columns = ['Avg Price', 'Volume', 'Avg Margin']
+        
+        fig = px.scatter(
+            category_metrics,
+            x='Volume',
+            y='Avg Price',
+            size='Avg Margin',
+            hover_name=category_metrics.index,
+            title="Category Volume vs Average Price",
+            labels={'Volume': 'Number of Items Sold', 'Avg Price': 'Average Price ($)'}
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Top categories by different metrics
+        st.write("**Category Rankings:**")
+        
+        # Top by revenue
+        top_revenue = df.groupby('openai_category')['Item Price'].sum().sort_values(ascending=False).head(5)
+        st.write("*By Total Revenue:*")
+        for i, (cat, rev) in enumerate(top_revenue.items(), 1):
+            st.write(f"{i}. {cat}: ${rev:,.2f}")
+        
+        # Top by margin
+        top_margin = df.groupby('openai_category')['Profit Margin'].mean().sort_values(ascending=False).head(5)
+        st.write("*By Average Margin:*")
+        for i, (cat, margin) in enumerate(top_margin.items(), 1):
+            st.write(f"{i}. {cat}: {margin:.1f}%")
+        
+        # Top by volume
+        top_volume = df.groupby('openai_category').size().sort_values(ascending=False).head(5)
+        st.write("*By Sales Volume:*")
+        for i, (cat, vol) in enumerate(top_volume.items(), 1):
+            st.write(f"{i}. {cat}: {vol} items")
 
 def geographic_insights(df):
     st.header("🗺️ Geographic Insights")
@@ -501,60 +520,6 @@ def performance_metrics(df):
         fig.update_layout(xaxis_tickangle=-45)
         st.plotly_chart(fig, use_container_width=True)
 
-def data_quality(df):
-    st.header("🔬 Data Quality & Confidence Analysis")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Confidence Score Distribution")
-        
-        fig = px.histogram(
-            df,
-            x='confidence_score',
-            title="Distribution of Confidence Scores",
-            nbins=20,
-            labels={'confidence_score': 'Confidence Score', 'count': 'Frequency'}
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Confidence by category
-        conf_by_category = df.groupby('openai_category')['confidence_score'].mean().sort_values(ascending=False)
-        
-        fig = px.bar(
-            x=conf_by_category.index,
-            y=conf_by_category.values,
-            title="Average Confidence Score by Category",
-            labels={'x': 'Category', 'y': 'Avg Confidence Score'},
-            color=conf_by_category.values,
-            color_continuous_scale='Viridis'
-        )
-        fig.update_layout(xaxis_tickangle=-45)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.subheader("Clustering vs AI Categories")
-        
-        # Cluster distribution
-        cluster_dist = df['cluster_label'].value_counts().sort_index()
-        
-        fig = px.pie(
-            values=cluster_dist.values,
-            names=[f"Cluster {i}" if i != -1 else "Noise" for i in cluster_dist.index],
-            title="Distribution of Clustering Results"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Low confidence items for review
-        st.subheader("Items Needing Review (Low Confidence)")
-        low_conf = df[df['confidence_score'] < 0.3][['Item Title', 'openai_category', 'openai_subcategory', 'confidence_score', 'cluster_label']]
-        low_conf = low_conf.sort_values('confidence_score')
-        
-        if len(low_conf) > 0:
-            st.dataframe(low_conf.head(10), use_container_width=True)
-        else:
-            st.success("No items with low confidence scores!")
-
 def recommendations(df):
     st.header("💡 Strategic Recommendations")
     
@@ -689,12 +654,7 @@ def recommendations(df):
     high_value_margin = df[df['Item Price'] >= high_value_threshold]['Profit Margin'].mean()
     insights.append(f"🔸 **Premium Strategy**: High-value items (>${high_value_threshold:.0f}+) have {high_value_margin:.1f}% average margin. Focus on premium product sourcing.")
     
-    # Insight 4: Low confidence data quality
-    low_conf_pct = (df['confidence_score'] < 0.5).mean() * 100
-    if low_conf_pct > 20:
-        insights.append(f"🔸 **Data Quality**: {low_conf_pct:.1f}% of items have low categorization confidence. Improve product titles and descriptions for better analytics.")
-    
-    # Insight 5: Temporal patterns
+    # Insight 4: Temporal patterns
     if 'day_of_week' in df.columns:
         # Check for day-of-week patterns
         day_variance = df.groupby('day_of_week')['Item Price'].sum().std()
@@ -702,7 +662,7 @@ def recommendations(df):
             best_day = df.groupby('day_of_week')['Item Price'].sum().idxmax()
             insights.append(f"🔸 **Timing Strategy**: Sales vary significantly by day of week. {best_day} is your strongest day - consider timing listings and promotions accordingly.")
     
-    # Insight 6: Seasonal opportunities
+    # Insight 5: Seasonal opportunities
     if 'season' in df.columns:
         season_revenue = df.groupby('season')['Item Price'].sum()
         if 'Unknown' in season_revenue.index:

@@ -1,4 +1,4 @@
-from data_parser import parse_data
+from src.data_utils.data_parser import parse_data
 import openai
 from openai import AsyncOpenAI
 import time
@@ -43,7 +43,15 @@ class RateLimiter:
 
 def normalize_titles(df, column_name):
     # Remove leading and trailing whitespace and convert to lowercase
-    product_titles = [title.strip().lower() for title in df[column_name]]
+    # Handle NaN values which appear as float objects
+    product_titles = []
+    for title in df[column_name]:
+        if pd.isna(title):
+            # Handle NaN/missing values
+            product_titles.append("unknown product")
+        else:
+            # Convert to string and normalize
+            product_titles.append(str(title).strip().lower())
     return product_titles
 
 def extract_day_of_week(date):

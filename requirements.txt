@@ -34,3 +34,6 @@ aiofiles>=23.0.0             # For async file operations
 Jinja2>=3.1.0                # For template rendering
 python-jose[cryptography]>=3.3.0  # For JWT token handling
 passlib[bcrypt]>=1.7.4       # For password hashing
+
+# Added from the code block
+numpy>=1.24.0

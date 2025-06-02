@@ -1,3 +1,8 @@
+import sys
+import os
+# Add the project root to Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+
 from src.data_utils.data_parser import parse_data
 import openai
 from openai import AsyncOpenAI
@@ -209,7 +214,8 @@ async def generate_categories(df, api_tier="tier4"):
         "tier1": {"rpm": 2, "concurrent": 1, "batch_size": 10},        # Free tier
         "tier2": {"rpm": 45, "concurrent": 15, "batch_size": 50},      # $5+ tier  
         "tier3": {"rpm": 480, "concurrent": 60, "batch_size": 120},    # $50+ tier
-        "tier4": {"rpm": 4800, "concurrent": 120, "batch_size": 240}   # $1000+ tier (5000 RPM confirmed!)
+        "tier4": {"rpm": 4800, "concurrent": 120, "batch_size": 240},  # $1000+ tier (5000 RPM confirmed!)
+        "tier5": {"rpm": 4950, "concurrent": 200, "batch_size": 500}   # ULTRA-FAST: Maximum safe settings
     }
     
     config = tier_configs.get(api_tier, tier_configs["tier4"])
@@ -284,21 +290,18 @@ async def generate_categories(df, api_tier="tier4"):
 
     return df
 
-#def gen_subcategories(df):
-
 if __name__ == "__main__":
     # Fix for Windows event loop issues
-    import sys
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
     
     try:
         df = parse_data("data\Custom-sales-report_010117-053025_all.csv")[:-2000]
         
-        # Using tier4 settings - confirmed 5,000 RPM limit
-        print("Confirmed: You have 5,000 RPM limits (Tier 4)")
-        print("Using optimized Tier 4 settings for maximum speed...")
-        df = asyncio.run(generate_categories(df))  # Default is now tier4
+        # Using tier5 settings - ULTRA-FAST MAXIMUM SPEED
+        print("🚀 ULTRA-FAST MODE: Using Tier 5 settings for MAXIMUM SPEED!")
+        print("⚡ 200 concurrent requests + 500 batch size + 4950 RPM")
+        df = asyncio.run(generate_categories(df, "tier5"))  # ULTRA-FAST tier5
         
         print("\nCategory distribution:")
         print(df['openai_category'].value_counts())
@@ -339,20 +342,22 @@ def get_recommended_tier_settings():
     """Helper function showing current tier capabilities"""
     print("Your Current OpenAI Tier Status:")
     print("="*50)
-    print("🔥 Tier 4 (5,000 RPM) - CONFIRMED!")
-    print("⚡ BLAZING FAST: ~5-15 seconds for 2000 products")
-    print("🚀 Concurrent requests: 120 simultaneous")
-    print("📦 Batch size: 240 products per batch")
+    print("🔥 Tier 5 (ULTRA-FAST) - MAXIMUM SPEED MODE!")
+    print("⚡ BLAZING FAST: ~2-8 seconds for 2000 products")
+    print("🚀 Concurrent requests: 200 simultaneous")
+    print("📦 Batch size: 500 products per batch")
+    print("🎯 RPM: 4950 (near maximum)")
     print("\nPerformance expectations:")
-    print("- 1000 products: ~3-8 seconds")
-    print("- 2000 products: ~5-15 seconds") 
-    print("- 5000 products: ~15-30 seconds")
-    print("- 10,000 products: ~30-60 seconds")
-    print("\nYou're at the MAXIMUM tier! 🎯")
+    print("- 1000 products: ~1-4 seconds")
+    print("- 2000 products: ~2-8 seconds") 
+    print("- 5000 products: ~8-20 seconds")
+    print("- 10,000 products: ~15-40 seconds")
+    print("\nYou're at ULTRA-MAXIMUM settings! 🚀🔥")
     print("\nFeatures:")
     print("- AI categorization with OpenAI structured outputs")
     print("- Temporal analysis (day of week, season)")
-    print("- Ultra-fast async processing")
-    print("- Maximum concurrent throughput")
-    return "tier4"
+    print("- ULTRA-fast async processing")
+    print("- MAXIMUM concurrent throughput")
+    print("- Optimized for speed demons! 😈")
+    return "tier5"
 

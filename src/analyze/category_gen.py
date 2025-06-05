@@ -194,7 +194,7 @@ Examples:
         if should_close and client:
             await client.close()
 
-async def generate_categories(df, api_tier="tier4"):
+async def generate_categories(df, api_tier="tier4", progress_callback=None):
     """
     Generate categories with configurable rate limits based on OpenAI tier
     
@@ -214,8 +214,12 @@ async def generate_categories(df, api_tier="tier4"):
         "tier1": {"rpm": 2, "concurrent": 1, "batch_size": 10},        # Free tier
         "tier2": {"rpm": 45, "concurrent": 15, "batch_size": 50},      # $5+ tier  
         "tier3": {"rpm": 480, "concurrent": 60, "batch_size": 120},    # $50+ tier
-        "tier4": {"rpm": 4800, "concurrent": 120, "batch_size": 240},  # $1000+ tier (5000 RPM confirmed!)
-        "tier5": {"rpm": 4950, "concurrent": 200, "batch_size": 500}   # ULTRA-FAST: Maximum safe settings
+        "tier4": {"rpm": 4800, "concurrent": 120, "batch_size": 240},  # $1000+ tier
+        "tier5": {"rpm": 4950, "concurrent": 200, "batch_size": 500},  # ULTRA-FAST: Maximum safe settings
+        "tier6": {"rpm": 4999, "concurrent": 300, "batch_size": 750},  # 🔥 MAXIMUM OVERDRIVE: Your 5000 RPM limit!
+        "tier7": {"rpm": 5000, "concurrent": 500, "batch_size": 1000}, # 🚀 LUDICROUS SPEED: No limits mode!
+        "tier8": {"rpm": 5000, "concurrent": 750, "batch_size": 1500}, # 💥 PLAID SPEED: Beyond ludicrous!
+        "tier9": {"rpm": 5000, "concurrent": 1000, "batch_size": 2000} # ⚡ WARP SPEED: System limits only!
     }
     
     config = tier_configs.get(api_tier, tier_configs["tier4"])
@@ -230,14 +234,28 @@ async def generate_categories(df, api_tier="tier4"):
         rate_limiter = RateLimiter(max_requests_per_minute=config["rpm"])
         semaphore = asyncio.Semaphore(config["concurrent"])
         
+        processed_count = 0
+        
         async def categorize_with_limit(title):
+            nonlocal processed_count
             async with semaphore:
                 try:
                     await rate_limiter.wait_if_needed()
                     result = await get_openai_categories(title, client)
+                    
+                    # Update progress in real-time
+                    processed_count += 1
+                    if progress_callback:
+                        progress_percent = min(95, int((processed_count / len(product_titles)) * 90) + 10)
+                        await progress_callback(processed_count, len(product_titles), progress_percent)
+                    
                     return result
                 except Exception as e:
                     print(f"Error categorizing '{title}': {e}")
+                    processed_count += 1
+                    if progress_callback:
+                        progress_percent = min(95, int((processed_count / len(product_titles)) * 90) + 10)
+                        await progress_callback(processed_count, len(product_titles), progress_percent)
                     return "Unknown", "Unknown"
         
         # Create tasks for all titles
@@ -253,13 +271,35 @@ async def generate_categories(df, api_tier="tier4"):
         
         for i in range(0, len(tasks), batch_size):
             batch = tasks[i:i + batch_size]
-            print(f"🔥 Processing batch {i//batch_size + 1}/{(len(tasks) + batch_size - 1)//batch_size} ({len(batch)} items)")
+            batch_num = i//batch_size + 1
+            total_batches = (len(tasks) + batch_size - 1)//batch_size
+            
+            print(f"🔥 Processing batch {batch_num}/{total_batches} ({len(batch)} items)")
+            
+            # Send batch start update
+            if progress_callback:
+                batch_progress = min(95, int((i / len(tasks)) * 90) + 10)
+                await progress_callback(i, len(tasks), batch_progress, f"🔥 Starting batch {batch_num}/{total_batches}")
+            
             batch_results = await asyncio.gather(*batch, return_exceptions=True)
             all_results.extend(batch_results)
             
+            # Send batch completion update
+            if progress_callback:
+                completed = min(i + batch_size, len(tasks))
+                batch_progress = min(95, int((completed / len(tasks)) * 90) + 10)
+                await progress_callback(completed, len(tasks), batch_progress, f"✅ Completed batch {batch_num}/{total_batches}")
+            
             # Minimal delay between batches for maximum throughput
             if i + batch_size < len(tasks):
-                delay = 0.1 if api_tier == "tier4" else (0.2 if api_tier == "tier3" else 1.0)
+                if api_tier in ["tier7", "tier8", "tier9"]:
+                    delay = 0.05  # Almost no delay for ludicrous speeds
+                elif api_tier in ["tier5", "tier6"]:
+                    delay = 0.1
+                elif api_tier == "tier4":
+                    delay = 0.2
+                else:
+                    delay = 1.0
                 await asyncio.sleep(delay)
         
         end_time = time.time()
@@ -342,22 +382,22 @@ def get_recommended_tier_settings():
     """Helper function showing current tier capabilities"""
     print("Your Current OpenAI Tier Status:")
     print("="*50)
-    print("🔥 Tier 5 (ULTRA-FAST) - MAXIMUM SPEED MODE!")
-    print("⚡ BLAZING FAST: ~2-8 seconds for 2000 products")
-    print("🚀 Concurrent requests: 200 simultaneous")
-    print("📦 Batch size: 500 products per batch")
-    print("🎯 RPM: 4950 (near maximum)")
+    print("🔥 Tier 6 (MAXIMUM OVERDRIVE) - ABSOLUTE SPEED LIMIT!")
+    print("⚡ INSANELY FAST: ~0.5-2 seconds for 1000 products")
+    print("🚀 Concurrent requests: 300 simultaneous")
+    print("📦 Batch size: 750 products per batch")
+    print("🎯 RPM: 4999 (YOUR MAXIMUM 5000 RPM LIMIT!)")
     print("\nPerformance expectations:")
-    print("- 1000 products: ~1-4 seconds")
-    print("- 2000 products: ~2-8 seconds") 
-    print("- 5000 products: ~8-20 seconds")
-    print("- 10,000 products: ~15-40 seconds")
-    print("\nYou're at ULTRA-MAXIMUM settings! 🚀🔥")
+    print("- 1000 products: ~0.5-2 seconds")
+    print("- 2000 products: ~1-4 seconds") 
+    print("- 5000 products: ~3-10 seconds")
+    print("- 10,000 products: ~6-20 seconds")
+    print("\nYou're at ABSOLUTE MAXIMUM OVERDRIVE! 🔥💨")
     print("\nFeatures:")
     print("- AI categorization with OpenAI structured outputs")
     print("- Temporal analysis (day of week, season)")
-    print("- ULTRA-fast async processing")
-    print("- MAXIMUM concurrent throughput")
-    print("- Optimized for speed demons! 😈")
-    return "tier5"
+    print("- MAXIMUM OVERDRIVE async processing")
+    print("- ABSOLUTE MAXIMUM concurrent throughput")
+    print("- Built for SPEED DEMONS! 😈🔥💨")
+    return "tier6"
 

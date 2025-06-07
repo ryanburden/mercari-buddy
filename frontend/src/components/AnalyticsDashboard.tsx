@@ -5,12 +5,12 @@ import {
   TrendingUp, 
   MapPin, 
   Calendar, 
-  Target, 
   Download,
   RefreshCw,
   AlertCircle,
   CheckCircle,
-  Loader2
+  Loader2,
+  DollarSign
 } from 'lucide-react';
 import apiService, { DashboardData, AnalysisStatus } from '../services/api';
 import RevenueCharts from './analytics/RevenueCharts';
@@ -19,6 +19,7 @@ import CategoryAnalysis from './analytics/CategoryAnalysis';
 import TemporalAnalysis from './analytics/TemporalAnalysis';
 import RecommendationsPanel from './analytics/RecommendationsPanel';
 import ProcessingStatus from './analytics/ProcessingStatus';
+import EbayPriceAnalysis from './analytics/EbayPriceAnalysis';
 
 interface AnalyticsDashboardProps {
   analysisId: string;
@@ -91,8 +92,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'revenue', label: 'Revenue', icon: TrendingUp },
     { id: 'geography', label: 'Geography', icon: MapPin },
-    { id: 'categories', label: 'Categories', icon: Target },
     { id: 'temporal', label: 'Temporal', icon: Calendar },
+    { id: 'ebay', label: 'eBay Prices', icon: DollarSign },
   ];
 
   if (isLoading) {
@@ -266,8 +267,8 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
 
             {activeTab === 'revenue' && <RevenueCharts data={dashboardData} />}
             {activeTab === 'geography' && <GeographicMap data={dashboardData} />}
-            {activeTab === 'categories' && <CategoryAnalysis data={dashboardData} />}
             {activeTab === 'temporal' && <TemporalAnalysis data={dashboardData} />}
+            {activeTab === 'ebay' && <EbayPriceAnalysis />}
           </motion.div>
         </AnimatePresence>
       </div>

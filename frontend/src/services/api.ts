@@ -57,6 +57,39 @@ export interface ExportData {
   analytics: DashboardData['analytics'];
 }
 
+export interface EbaySearchRequest {
+  item_name: string;
+  days_back?: number;
+  limit?: number;
+}
+
+export interface EbaySearchResult {
+  query: string;
+  search_period_days: number;
+  total_items_found: number;
+  requested_limit: number;
+  statistics?: {
+    average_price: number;
+    min_price: number;
+    max_price: number;
+    median_price: number;
+    currency: string;
+  };
+  items: Array<{
+    title: string;
+    price: number;
+    currency: string;
+    url: string;
+    soldDate: string;
+    imageUrl?: string;
+  }>;
+  date_range: {
+    start_date: string;
+    end_date: string;
+  };
+  message?: string;
+}
+
 class ApiService {
   private baseUrl: string;
 
@@ -119,6 +152,23 @@ class ApiService {
   createWebSocketConnection(analysisId: string): WebSocket {
     const wsUrl = this.baseUrl.replace('http', 'ws') + `/ws/analysis/${analysisId}`;
     return new WebSocket(wsUrl);
+  }
+
+  // Search eBay for item prices
+  async searchEbayPrices(request: EbaySearchRequest): Promise<EbaySearchResult> {
+    const response = await fetch(`${this.baseUrl}/api/ebay/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error(`eBay search failed: ${response.statusText}`);
+    }
+
+    return response.json();
   }
 }
 
@@ -518,6 +568,45 @@ class MockApiService {
   createWebSocketConnection(analysisId: string): WebSocket {
     // Return a mock WebSocket for development
     return new WebSocket('wss://echo.websocket.org/');
+  }
+
+  async searchEbayPrices(request: EbaySearchRequest): Promise<EbaySearchResult> {
+    // Mock eBay search for development
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+    
+    const mockItems = Array.from({ length: Math.min(request.limit || 100, 50) }, (_, i) => ({
+      title: `${request.item_name} - Item ${i + 1}`,
+      price: Math.floor(Math.random() * 100) + 20,
+      currency: 'USD',
+      url: `https://www.ebay.com/itm/mock-item-${i + 1}`,
+      soldDate: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+      imageUrl: `https://picsum.photos/200/200?random=${i}` // Mock placeholder images
+    }));
+
+    const prices = mockItems.map(item => item.price);
+    const averagePrice = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const medianPrice = prices.sort((a, b) => a - b)[Math.floor(prices.length / 2)];
+
+    return {
+      query: request.item_name,
+      search_period_days: request.days_back || 7,
+      total_items_found: mockItems.length,
+      requested_limit: request.limit || 100,
+      statistics: {
+        average_price: Math.round(averagePrice * 100) / 100,
+        min_price: minPrice,
+        max_price: maxPrice,
+        median_price: medianPrice,
+        currency: 'USD'
+      },
+      items: mockItems.slice(0, 20),
+      date_range: {
+        start_date: new Date(Date.now() - (request.days_back || 7) * 24 * 60 * 60 * 1000).toISOString(),
+        end_date: new Date().toISOString()
+      }
+    };
   }
 }
 

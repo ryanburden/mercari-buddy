@@ -8,14 +8,16 @@ import uuid
 import time
 import os
 import sys
-from typing import Dict, Optional
+from typing import Dict, Optional, Literal
 from pydantic import BaseModel
 import tempfile
 from io import StringIO
 
-# Add the project root to Python path to import our categorization module
+# Add the project root to Python path to import our modules
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from src.analyze.category_gen import generate_categories
+from src.analyze.ebay_scrape import search_ebay_items
+from src.analyze.rewrite_listing import rewrite_listing
 
 app = FastAPI(title="Ecommerce Intelligence API", version="1.0.0")
 
@@ -28,11 +30,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class ListingRequest(BaseModel):
+    listing_text: str
+    listing_type: Literal["title", "description"]
+
+class ListingResponse(BaseModel):
+    optimized_text: str
+
+@app.post("/api/optimize-listing", response_model=ListingResponse)
+async def optimize_listing(request: ListingRequest):
+    try:
+        optimized_text = await rewrite_listing(request.listing_text, request.listing_type)
+        return ListingResponse(optimized_text=optimized_text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # In-memory storage for analysis jobs (in production, use Redis or a database)
 analysis_jobs: Dict[str, dict] = {}
 
 class AnalysisRequest(BaseModel):
     apiTier: Optional[str] = "tier5"
+
+class EbaySearchRequest(BaseModel):
+    item_name: str
+    days_back: Optional[int] = 7
+    limit: Optional[int] = 100
 
 class ConnectionManager:
     def __init__(self):
@@ -332,6 +354,23 @@ async def get_dashboard_data(analysis_id: str):
         raise HTTPException(status_code=500, detail="Analysis data not available")
     
     return job["data"]
+
+@app.post("/api/ebay/search")
+async def search_ebay_prices(request: EbaySearchRequest):
+    """Search eBay for item prices and return statistics"""
+    
+    try:
+        result = search_ebay_items(
+            item_name=request.item_name,
+            days_back=request.days_back,
+            limit=request.limit
+        )
+        return result
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"eBay search failed: {str(e)}")
 
 @app.websocket("/ws/analysis/{analysis_id}")
 async def websocket_endpoint(websocket: WebSocket, analysis_id: str):

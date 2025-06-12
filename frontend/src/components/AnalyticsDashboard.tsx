@@ -10,7 +10,8 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
-  DollarSign
+  DollarSign,
+  Edit3
 } from 'lucide-react';
 import apiService, { DashboardData, AnalysisStatus } from '../services/api';
 import RevenueCharts from './analytics/RevenueCharts';
@@ -20,6 +21,7 @@ import TemporalAnalysis from './analytics/TemporalAnalysis';
 import RecommendationsPanel from './analytics/RecommendationsPanel';
 import ProcessingStatus from './analytics/ProcessingStatus';
 import EbayPriceAnalysis from './analytics/EbayPriceAnalysis';
+import ListingOptimizer from './analytics/ListingOptimizer';
 
 interface AnalyticsDashboardProps {
   analysisId: string;
@@ -94,6 +96,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
     { id: 'geography', label: 'Geography', icon: MapPin },
     { id: 'temporal', label: 'Temporal', icon: Calendar },
     { id: 'ebay', label: 'eBay Prices', icon: DollarSign },
+    { id: 'optimizer', label: 'Listing Optimizer', icon: Edit3 },
   ];
 
   if (isLoading) {
@@ -269,6 +272,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             {activeTab === 'geography' && <GeographicMap data={dashboardData} />}
             {activeTab === 'temporal' && <TemporalAnalysis data={dashboardData} />}
             {activeTab === 'ebay' && <EbayPriceAnalysis />}
+            {activeTab === 'optimizer' && <ListingOptimizer />}
           </motion.div>
         </AnimatePresence>
       </div>

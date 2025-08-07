@@ -237,10 +237,21 @@ async def process_analysis(analysis_id: str, csv_content: str, api_tier: str):
             
             # Geographic data
             state_revenue = {}
+            state_orders = {}
+            region_mapping = {
+                'California': 'West', 'Texas': 'South', 'Florida': 'South', 'New York': 'Northeast',
+                'Pennsylvania': 'Northeast', 'Illinois': 'Midwest', 'Ohio': 'Midwest', 'Georgia': 'South',
+                'North Carolina': 'South', 'Michigan': 'Midwest'
+            }
+            region_revenue = {}
+            
             for product in products:
                 state = product.get('Shipped to State', 'Unknown')
                 revenue = safe_float(product.get('Item Price', 0))
                 state_revenue[state] = state_revenue.get(state, 0.0) + revenue
+                state_orders[state] = state_orders.get(state, 0) + 1
+                region = region_mapping.get(state, 'Other')
+                region_revenue[region] = region_revenue.get(region, 0.0) + revenue
             
             # Sanitize all numeric values in the analytics
             def sanitize_dict(d):
@@ -270,7 +281,8 @@ async def process_analysis(analysis_id: str, csv_content: str, api_tier: str):
                     },
                     "geographicData": {
                         "stateRevenue": state_revenue,
-                        "regionRevenue": {}  # Can be calculated if needed
+                        "stateOrders": state_orders,
+                        "regionRevenue": region_revenue
                     },
                     "recommendations": [
                         f"Processed {len(products)} products with OpenAI tier-5 in {processing_time:.1f} seconds",

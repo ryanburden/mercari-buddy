@@ -17,7 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Brain className="h-6 w-6 text-white" />
               </div>
               <span className="text-xl font-display font-bold text-white">
-                EcomIntel
+                MercariBuddy
               </span>
             </div>
             
@@ -51,7 +51,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <Brain className="h-6 w-6 text-white" />
                 </div>
                 <span className="text-xl font-display font-bold text-white">
-                  EcomIntel
+                  MercariBuddy
                 </span>
               </div>
               <p className="text-white/70 max-w-md">
@@ -89,7 +89,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
           
           <div className="border-t border-white/10 mt-8 pt-8 text-center text-white/60">
-            <p>&copy; 2024 EcomIntel. Powered by AI for smarter ecommerce decisions.</p>
+            <p>&copy; 2024 MercariBuddy. Powered by AI for smarter ecommerce decisions.</p>
           </div>
         </div>
       </footer>

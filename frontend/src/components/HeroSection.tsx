@@ -39,48 +39,20 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
             temporal analysis, and actionable insights in seconds.
           </p>
 
-          {/* Stats */}
-          <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-8 mb-12 animate-fade-in delay-500">
-            <div className="flex items-center space-x-2 text-white/90">
-              <Zap className="h-5 w-5 text-yellow-400" />
-              <span className="font-semibold">5000+ products/min</span>
-            </div>
-            <div className="flex items-center space-x-2 text-white/90">
-              <TrendingUp className="h-5 w-5 text-green-400" />
-              <span className="font-semibold">99.9% accuracy</span>
-            </div>
-            <div className="flex items-center space-x-2 text-white/90">
-              <Sparkles className="h-5 w-5 text-purple-400" />
-              <span className="font-semibold">Real-time insights</span>
-            </div>
-          </div>
+
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6 animate-fade-in delay-700">
+          <div className="flex justify-center animate-fade-in delay-700">
             <button
               onClick={onGetStarted}
               className="btn-primary group"
             >
-              Upload Your CSV
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </button>
-            
-            <button className="btn-secondary">
-              View Demo
+              <span>Upload Your CSV</span>
+              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform flex-shrink-0" />
             </button>
           </div>
 
-          {/* Trust Indicators */}
-          <div className="mt-16 animate-fade-in delay-1000">
-            <p className="text-white/60 text-sm mb-6">Trusted by ecommerce businesses worldwide</p>
-            <div className="flex justify-center items-center space-x-8 opacity-60">
-              <div className="text-white/40 font-semibold">OpenAI Powered</div>
-              <div className="w-px h-4 bg-white/20"></div>
-              <div className="text-white/40 font-semibold">Enterprise Ready</div>
-              <div className="w-px h-4 bg-white/20"></div>
-              <div className="text-white/40 font-semibold">GDPR Compliant</div>
-            </div>
-          </div>
+
         </div>
       </div>
 

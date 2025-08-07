@@ -45,6 +45,7 @@ export interface DashboardData {
     };
     geographicData: {
       stateRevenue: Record<string, number>;
+      stateOrders: Record<string, number>;
       regionRevenue: Record<string, number>;
     };
     recommendations: string[];
@@ -547,6 +548,7 @@ class MockApiService {
         },
         geographicData: {
           stateRevenue,
+          stateOrders: {},
           regionRevenue
         },
         recommendations: [
